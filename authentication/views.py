@@ -72,6 +72,7 @@ def verify_otp(request):
 
 
 @api_view(['POST'])
+@permission_classes([AllowAny])  # Ensures no authentication is required
 def login_user(request):
     username = request.data.get('username')
     password = request.data.get('password')
@@ -111,7 +112,7 @@ def refresh_token(request):
 
     try:
         # Retrieve the stored refresh token from the user profile
-        user = request.user  # Assuming the user is authenticated
+        user = request.user
 
         # Get the associated UserProfile
         user_profile = UserProfile.objects.get(user=user)
