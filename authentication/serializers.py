@@ -1,6 +1,6 @@
-from django.contrib.auth.models import User, Permission
+from django.contrib.auth.models import User
 from rest_framework import serializers
-from authentication.models import UserProfile
+from authentication.models import UserProfile, UserJitPermission
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -20,24 +20,40 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = UserProfile
         fields = ["phone_number", "address"]
 
+class UserJitPermissionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserJitPermission
+        fields = ['permission', 'status', 'granted_at', 'expiration']
+
+    def to_representation(self, instance):
+        # Check if the permission is expired
+        if instance.is_expired() and instance.status != 'expired':
+            instance.status = 'expired'
+            instance.save()  # Update the status in the database
+
+        return super().to_representation(instance)
+
 
 class UserSerializer(serializers.ModelSerializer):
-    profile = UserProfileSerializer(required=False)  # 👈 Allow missing profiles
+    profile = UserProfileSerializer(required=False)
     groups = serializers.StringRelatedField(many=True)
-    permissions = serializers.SerializerMethodField()  # 👈 Custom method for permissions
+    permissions = serializers.SerializerMethodField()
+    jit_permissions = UserJitPermissionSerializer(many=True, read_only=True)
 
     class Meta:
         model = User
-        fields = ["id", "username", "email", "profile", "groups", "permissions"]
+        fields = ["id", "username", "email", "profile", "groups", "permissions", "jit_permissions"]
 
     def get_permissions(self, obj):
-        return obj.user_permissions.values_list("codename", flat=True)  # 👈 Fix the error
+        return obj.user_permissions.values_list("codename", flat=True)
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
 
-        # 👇 Ensure 'profile' key is present, even if the user has no profile
         if "profile" not in representation:
             representation["profile"] = None
+
+        if "jit_permissions" not in representation:
+            representation["jit_permissions"] = []
 
         return representation

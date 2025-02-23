@@ -1,5 +1,7 @@
 import datetime
 import random
+import time
+from datetime import timedelta
 
 from django.conf import settings
 from django.contrib.auth import get_user_model, authenticate
@@ -11,10 +13,11 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from django.contrib.auth.models import Permission
 
-from .models import UserProfile
-from .serializers import UserRegistrationSerializer, UserSerializer
-from .utils import create_refresh_token, create_access_token, create_access_token_from_refresh
+from .models import UserProfile, UserJitPermission
+from .serializers import UserRegistrationSerializer, UserSerializer, UserJitPermissionSerializer
+from .utils import create_refresh_token, create_access_token, create_access_token_from_refresh, check_permission
 
 
 @api_view(['POST'])
@@ -103,7 +106,7 @@ def login_user(request):
 
 # Token Refresh View (Refresh access token using refresh token)
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])  # Authentication required for token refresh
+@permission_classes([IsAuthenticated])
 def refresh_token(request):
     refresh_token_value = request.data.get('refresh_token')
 
@@ -132,7 +135,7 @@ def refresh_token(request):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])  # Authentication required for accessing profile
+@permission_classes([IsAuthenticated])
 def get_user_profile(request):
     try:
         # Get the current authenticated user
@@ -144,3 +147,173 @@ def get_user_profile(request):
         return Response(serializer.data, status=status.HTTP_200_OK)
     except User.DoesNotExist:
         return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def request_permission(request):
+    permission_codename = request.data.get('permission')
+
+    if not permission_codename:
+        return Response({"error": "Permission codename is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Simulate a delay
+    time.sleep(15)  # 15 seconds timeout simulation
+
+    # Retrieve the permission object
+    try:
+        permission = Permission.objects.get(codename=permission_codename)
+    except Permission.DoesNotExist:
+        return Response({"error": "Permission not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    # Get the authenticated user
+    user = request.user
+
+    # Check if the user already has this JIT permission
+    existing_jit_permission = UserJitPermission.objects.filter(user=user, permission=permission,
+                                                               status='active').first()
+    if existing_jit_permission:
+        return Response({"error": f"User already has active permission {permission_codename}."},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    # Handle permission expiration - Set expiration to 1 hour after granting
+    expiration_time = timezone.now() + timedelta(hours=1)
+
+    # Create the JIT permission record
+    UserJitPermission.objects.create(
+        user=user,
+        permission=permission,
+        granted_at=timezone.now(),
+        expiration=expiration_time,
+        status='active',
+    )
+
+    return Response({"message": f"Permission {permission_codename} granted successfully!"}, status=status.HTTP_200_OK)
+
+
+#MOCK requests for each of the modules
+
+#VIEW DASHBOARD MODULE
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def dashboard(request):
+    required_permission_codename = 'can_view_dashboard'
+
+    result = check_permission(request, required_permission_codename)
+
+    return result
+
+
+#VIEW PRODUCTS MODULE
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def products(request):
+    required_permission_codename = 'can_view_products'
+
+    result = check_permission(request, required_permission_codename)
+
+    return result
+
+
+#VIEW ACCOUNT MODULE
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def account(request):
+    required_permission_codename = 'can_view_account'
+
+    result = check_permission(request, required_permission_codename)
+
+    return result
+
+
+#VIEW SETTINGS MODULE
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def settings(request):
+    required_permission_codename = 'can_view_settings'
+
+    result = check_permission(request, required_permission_codename)
+
+    return result
+
+
+#CRUD MOCK operations for PRODUCTS module
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def add_new_product(request):
+    required_permission_codename = 'can_add_products'
+
+    result = check_permission(request, required_permission_codename)
+
+    return result
+
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def update_product(request):
+    required_permission_codename = 'can_update_products'
+
+    result = check_permission(request, required_permission_codename)
+
+    return result
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_product(request):
+    required_permission_codename = 'can_delete_products'
+
+    result = check_permission(request, required_permission_codename)
+
+    return result
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def add_new_discount(request):
+    required_permission_codename = 'can_add_discounts'
+
+    result = check_permission(request, required_permission_codename)
+
+    return result
+
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def update_discount(request):
+    required_permission_codename = 'can_update_discounts'
+
+    result = check_permission(request, required_permission_codename)
+
+    return result
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_discount(request):
+    required_permission_codename = 'can_delete_discounts'
+
+    result = check_permission(request, required_permission_codename)
+
+    return result
+
+
+#Additional mock methods
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def update_account(request):
+    required_permission_codename = 'can_update_account'
+
+    result = check_permission(request, required_permission_codename)
+
+    return result
+
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def update_settings(request):
+    required_permission_codename = 'can_update_settings'
+
+    result = check_permission(request, required_permission_codename)
+
+    return result
