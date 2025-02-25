@@ -45,7 +45,15 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ["id", "username", "email", "profile", "groups", "permissions", "jit_permissions"]
 
     def get_permissions(self, obj):
-        return obj.user_permissions.values_list("codename", flat=True)
+        # Get user-specific permissions
+        user_permissions = set(obj.user_permissions.values_list("codename", flat=True))
+
+        # Get group-based permissions
+        group_permissions = set(
+            obj.groups.values_list("permissions__codename", flat=True)
+        )
+
+        return list(user_permissions.union(group_permissions))
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)

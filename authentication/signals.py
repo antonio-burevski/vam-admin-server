@@ -7,7 +7,6 @@ from .models import ModulePermissions
 
 @receiver(post_migrate)
 def create_permissions_and_groups(sender, **kwargs):
-    # Create permissions (already handled in your original signal)
     content_type = ContentType.objects.get_for_model(ModulePermissions)
     permissions = [
         ('can_view_dashboard', 'Can view dashboard'),
