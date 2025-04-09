@@ -3,25 +3,27 @@ import random
 import time
 from datetime import timedelta
 
-from django.conf import settings
+from decouple import config
 from django.contrib.auth import get_user_model, authenticate
+from django.contrib.auth.models import Permission
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.mail import send_mail
+from django.http import JsonResponse
+from django.middleware.csrf import get_token
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from django.contrib.auth.models import Permission
 
 from .models import UserProfile, UserJitPermission
-from .serializers import UserRegistrationSerializer, UserSerializer, UserJitPermissionSerializer
+from .serializers import UserRegistrationSerializer, UserSerializer
 from .utils import create_refresh_token, create_access_token, create_access_token_from_refresh, check_permission
 
 
 @api_view(['POST'])
-@permission_classes([AllowAny])  # Ensures no authentication is required
+@permission_classes([AllowAny])
 def register_user(request):
     serializer = UserRegistrationSerializer(data=request.data)
 
@@ -38,7 +40,7 @@ def register_user(request):
         send_mail(
             'Your OTP Code',
             f'Your OTP code is: {otp}. It will expire in 5 minutes.',
-            settings.DEFAULT_FROM_EMAIL,  # Use from settings
+            config('DEFAULT_FROM_EMAIL'),
             [user.email],
             fail_silently=False,
         )
@@ -75,7 +77,7 @@ def verify_otp(request):
 
 
 @api_view(['POST'])
-@permission_classes([AllowAny])  # Ensures no authentication is required
+@permission_classes([AllowAny])
 def login_user(request):
     username = request.data.get('username')
     password = request.data.get('password')
@@ -135,6 +137,12 @@ def refresh_token(request):
 
 
 @api_view(['GET'])
+@permission_classes([AllowAny])
+def csrf_token_view(request):
+    return JsonResponse({"csrfToken": get_token(request)})
+
+
+@api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_user_profile(request):
     try:
@@ -158,9 +166,8 @@ def request_permission(request):
         return Response({"error": "Permission codename is required."}, status=status.HTTP_400_BAD_REQUEST)
 
     # Simulate a delay
-    time.sleep(15)  # 15 seconds timeout simulation
+    time.sleep(5)
 
-    # Retrieve the permission object
     try:
         permission = Permission.objects.get(codename=permission_codename)
     except Permission.DoesNotExist:
@@ -176,7 +183,7 @@ def request_permission(request):
         return Response({"error": f"User already has active permission {permission_codename}."},
                         status=status.HTTP_400_BAD_REQUEST)
 
-    # Handle permission expiration - Set expiration to 1 hour after granting
+    # Set expiration to 1 hour after granting
     expiration_time = timezone.now() + timedelta(hours=1)
 
     # Create the JIT permission record
@@ -191,9 +198,9 @@ def request_permission(request):
     return Response({"message": f"Permission {permission_codename} granted successfully!"}, status=status.HTTP_200_OK)
 
 
-#MOCK requests for each of the modules
+# MOCK requests for each of the modules
 
-#VIEW DASHBOARD MODULE
+# VIEW DASHBOARD MODULE
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def dashboard(request):
@@ -204,7 +211,7 @@ def dashboard(request):
     return result
 
 
-#VIEW PRODUCTS MODULE
+# VIEW PRODUCTS MODULE
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def products(request):
@@ -215,7 +222,7 @@ def products(request):
     return result
 
 
-#VIEW ACCOUNT MODULE
+# VIEW ACCOUNT MODULE
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def account(request):
@@ -226,7 +233,7 @@ def account(request):
     return result
 
 
-#VIEW SETTINGS MODULE
+# VIEW SETTINGS MODULE
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def settings(request):
@@ -237,7 +244,7 @@ def settings(request):
     return result
 
 
-#CRUD MOCK operations for PRODUCTS module
+# CRUD MOCK operations for PRODUCTS module
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def add_new_product(request):
@@ -298,7 +305,7 @@ def delete_discount(request):
     return result
 
 
-#Additional mock methods
+# Additional mock methods
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 def update_account(request):

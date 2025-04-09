@@ -14,7 +14,7 @@ def create_access_token(user):
     refresh = RefreshToken.for_user(user)
 
     # Set custom expiration time for the access token (e.g., 15 minutes)
-    refresh.set_exp(lifetime=datetime.timedelta(minutes=15))  # Adjust as needed
+    refresh.set_exp(lifetime=datetime.timedelta(minutes=15))
 
     access_token = str(refresh.access_token)
 
